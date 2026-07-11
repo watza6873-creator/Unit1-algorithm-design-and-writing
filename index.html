@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>บทเรียนออนไลน์ วิทยาการคำนวณ ม.1</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <!-- MediaPipe for AR Hand Tracking -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+    <script>
+        tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Sarabun', 'sans-serif'] } } }
+        }
+    </script>
+
+    <style>
+        body { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); min-height: 100vh; overflow-x: hidden; font-family: 'Sarabun', sans-serif; }
+        .glass { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.8); box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .btn-hover { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .btn-hover:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+        .btn-hover:active { transform: translateY(0) scale(0.98); }
+        .content-section { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Drag & Drop Styles */
+        .draggable { cursor: grab; touch-action: none; user-select: none; }
+        .draggable:active { cursor: grabbing; }
+        .dropzone { min-height: 50px; transition: all 0.3s; }
+        .dropzone.dragover { background: rgba(16, 185, 129, 0.2) !important; border-color: #10b981 !important; transform: scale(1.02); box-shadow: 0 0 15px rgba(16, 185, 129, 0.4); }
+        
+        /* Flowchart Shapes */
+        .shape { width: 110px; height: 50px; display: inline-flex; justify-content: center; align-items: center; font-size: 13px; font-weight: bold; text-align: center; line-height: 1.2; padding: 0 10px; }
+        .shape-term { background: #3b82f6; border-radius: 25px; color: white; }
+        .shape-proc { background: #10b981; border-radius: 6px; color: white; }
+        .shape-io { background: #8b5cf6; transform: skew(-15deg); color: white; border-radius: 4px; }
+        .shape-io span { transform: skew(15deg); display: block; }
+        .shape-dec { background: #f59e0b; width: 80px; height: 80px; transform: rotate(45deg); margin: 10px 15px; color: white; border-radius: 10px; }
+        .shape-dec span { transform: rotate(-45deg); display: block; margin-top:-5px; }
+
+        /* AR Balloons */
+        .balloon { position: absolute; pointer-events: auto; cursor: crosshair; transition: transform 0.1s; display: flex; flex-direction: column; align-items: center; }
+        .balloon-body { width: 130px; height: 160px; border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.2), 0 5px 15px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; padding: 15px; font-weight: 900; font-size: 16px; text-align: center; color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
+        .balloon-tail { width: 3px; height: 50px; background: rgba(255,255,255,0.7); margin: 0 auto; }
+        @keyframes floatUp { 0% { transform: translateY(100vh) scale(0.8) rotate(-5deg); } 100% { transform: translateY(-120vh) scale(1.1) rotate(5deg); } }
+        .anim-float { animation-name: floatUp; animation-timing-function: linear; animation-fill-mode: forwards; }
+        
+        /* Level 2 Numbering counter */
+        ol.counter-list { counter-reset: l2-counter; }
+        ol.counter-list li::before { counter-increment: l2-counter; content: "ขั้นที่ " counter(l2-counter); font-weight: 900; color: #2563eb; background: #eff6ff; padding: 4px 10px; border-radius: 8px; margin-right: 12px; border: 1px solid #bfdbfe; }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <script>
+        // ==========================================
+        // ตั้งค่า Google Apps Script URL ที่นี่ (ใส่ URL ของคุณครู)
+        // ==========================================
+        const GOOGLE_APP_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxhI4JfH5gdr77emKwua7dRgtMatuJkKQnmp_YMpoSlZPrTvILpTl6O9WK_nDQO6e1v/exec';
+
+        // ฐานข้อมูลเกม (ขยายเนื้อหาเพิ่ม 30%)
+        const DEFAULT_GAME_DATA = {
+            quiz: [
+                { q: "การคิดเชิงนามธรรม (Abstract Thinking) มีจุดประสงค์หลักเพื่ออะไร?", options: ["หารายละเอียดที่มากที่สุด", "หาแนวคิดรวบยอดและตัดรายละเอียดที่ไม่จำเป็นออก", "วาดแผนผังการทำงาน", "เขียนโปรแกรมคอมพิวเตอร์"], a: 1 },
+                { q: "อัลกอริทึม (Algorithm) หมายถึงข้อใด?", options: ["ภาษาคอมพิวเตอร์ชนิดหนึ่ง", "สัญลักษณ์ที่ใช้ในการเขียนโปรแกรม", "ขั้นตอนการแก้ปัญหาที่มีลำดับชัดเจน", "อุปกรณ์คอมพิวเตอร์"], a: 2 },
+                { q: "ข้อใดคือข้อเสียของการเขียนอัลกอริทึมด้วยภาษาธรรมชาติ?", options: ["เข้าใจยาก", "เขียนยาวเกินไป", "อาจเกิดความกำกวม สื่อความหมายผิด", "ต้องใช้โปรแกรมพิเศษในการเขียน"], a: 2 },
+                { q: "รหัสลำลอง (Pseudocode) คืออะไร?", options: ["โค้ดที่รันได้จริง", "การเขียนบรรยายคล้ายภาษาคอมฯ แต่อ่านเข้าใจง่าย", "รหัสผ่านสำหรับการเข้าระบบ", "การวาดภาพเพื่ออธิบาย"], a: 1 },
+                { q: "สัญลักษณ์รูปสี่เหลี่ยมข้าวหลามตัด (Diamond) หมายถึงอะไร?", options: ["การรับข้อมูล", "การแสดงผลลัพธ์", "จุดเริ่มต้น", "การตัดสินใจ/ตรวจสอบเงื่อนไข"], a: 3 },
+                { q: "หากต้องการอธิบายการคำนวณพื้นที่สามเหลี่ยม ควรใช้สัญลักษณ์ใด?", options: ["สี่เหลี่ยมผืนผ้า (Process)", "สี่เหลี่ยมข้าวหลามตัด (Decision)", "วงรี (Terminal)", "สี่เหลี่ยมด้านขนาน (I/O)"], a: 0 },
+                { q: "คำสั่ง 'IF ... THEN ... ELSE' ในรหัสลำลอง ใช้ในกรณีใด?", options: ["ทำซ้ำไม่รู้จบ", "รับข้อมูลจากผู้ใช้", "มีทางเลือกให้ตัดสินใจ 2 ทาง", "แสดงผลออกทางหน้าจอ"], a: 2 },
+                { q: "ขั้นตอนแรกสุดของการแก้ปัญหาด้วยคอมพิวเตอร์คือข้อใด?", options: ["เขียนโปรแกรม (Coding)", "ออกแบบอัลกอริทึม", "วิเคราะห์และทำความเข้าใจปัญหา", "ทดสอบระบบ"], a: 2 },
+                { q: "สิ่งใดไม่จำเป็นในการวางแผนไปโรงเรียน (คิดเชิงนามธรรม)?", options: ["เส้นทางการเดินทาง", "เวลาที่ต้องตื่น", "สีของรถประจำทางที่นั่ง", "จำนวนเงินที่ต้องใช้"], a: 2 },
+                { q: "ข้อใดเรียงลำดับการเขียนโปรแกรมได้ถูกต้อง?", options: ["ออกแบบ -> เขียนโค้ด -> วิเคราะห์ -> ทดสอบ", "วิเคราะห์ -> ออกแบบ -> เขียนโค้ด -> ทดสอบ", "เขียนโค้ด -> ทดสอบ -> วิเคราะห์ -> ออกแบบ", "วิเคราะห์ -> ทดสอบ -> ออกแบบ -> เขียนโค้ด"], a: 1 }
+            ],
+            game1: { // เพิ่มไอเทมเป็น 9 ชิ้น
+                items: [
+                    { id: 'i1', text: "น้ำดื่ม 2 ขวด", type: "ess" }, { id: 'i2', text: "เครื่องสำอาง", type: "non" },
+                    { id: 'i3', text: "ชุดปฐมพยาบาล", type: "ess" }, { id: 'i4', text: "อัลบั้มศิลปิน", type: "non" },
+                    { id: 'i5', text: "ไฟฉายและมีดพก", type: "ess" }, { id: 'i6', text: "ตุ๊กตาหมี", type: "non" },
+                    { id: 'i7', text: "อาหารแห้ง", type: "ess" }, { id: 'i8', text: "ชุดแฟชั่น", type: "non" },
+                    { id: 'i9', text: "แผนที่เมือง", type: "ess" }
+                ]
+            },
+            game2: [ // อัลกอริทึมต้มมาม่า 7 ขั้นตอน (ไม่มีตัวเลข)
+                { id: 's1', text: "ต้มน้ำให้เดือด" }, { id: 's2', text: "ฉีกซองบะหมี่กึ่งสำเร็จรูป" },
+                { id: 's3', text: "นำบะหมี่ใส่ลงในชาม" }, { id: 's4', text: "เทผงปรุงรสลงไป" },
+                { id: 's5', text: "เทน้ำร้อนลงในชาม" }, { id: 's6', text: "ปิดฝารอ 3 นาที" }, { id: 's7', text: "เปิดฝาและรับประทานได้" }
+            ],
+            game3: [ // ภาษาธรรมชาติ 6 ข้อ
+                { q: "ถ้าฝนตก ฉันจะกางร่ม", opts: ["ตรวจสอบเงื่อนไข (IF)", "การวนซ้ำ (LOOP)", "การแสดงผล (OUTPUT)"], a: "ตรวจสอบเงื่อนไข (IF)" },
+                { q: "วิ่งรอบสนาม 3 รอบ", opts: ["รับข้อมูล (INPUT)", "การวนซ้ำ (LOOP)", "การแสดงผล (OUTPUT)"], a: "การวนซ้ำ (LOOP)" },
+                { q: "กรอกรหัสผ่าน 4 หลัก", opts: ["รับข้อมูล (INPUT)", "ตรวจสอบเงื่อนไข (IF)", "การคำนวณ (PROCESS)"], a: "รับข้อมูล (INPUT)" },
+                { q: "นำราคาสินค้าบวกด้วยภาษี 7%", opts: ["รับข้อมูล (INPUT)", "การแสดงผล (OUTPUT)", "การคำนวณ (PROCESS)"], a: "การคำนวณ (PROCESS)" },
+                { q: "แสดงข้อความ 'ยินดีต้อนรับ' ทางหน้าจอ", opts: ["การคำนวณ (PROCESS)", "การวนซ้ำ (LOOP)", "การแสดงผล (OUTPUT)"], a: "การแสดงผล (OUTPUT)" },
+                { q: "ทำความสะอาดบ้านจนกว่าจะสะอาด", opts: ["การวนซ้ำ (LOOP)", "ตรวจสอบเงื่อนไข (IF)", "รับข้อมูล (INPUT)"], a: "การวนซ้ำ (LOOP)" }
+            ],
+            game4: [ // รหัสลำลอง 7 คู่
+                { code: "START / STOP", th: "จุดเริ่มต้น / จุดสิ้นสุด" },
+                { code: "INPUT / READ", th: "รับข้อมูลเข้า" },
+                { code: "COMPUTE", th: "ประมวลผล / คำนวณ" },
+                { code: "OUTPUT / PRINT", th: "แสดงผลลัพธ์" },
+                { code: "IF...THEN...ELSE", th: "ถ้าเป็นจริงทำ... มิฉะนั้นทำ..." },
+                { code: "WHILE", th: "ทำซ้ำในขณะที่..." },
+                { code: "FOR", th: "ทำซ้ำตามจำนวนรอบที่กำหนด" }
+            ],
+            game5: [ // ผังงาน 10 ข้อสำหรับเกม AR
+                { type: "term", name: "จุดเริ่มต้น/สิ้นสุด", svg: '<rect x="10" y="30" width="80" height="40" rx="20" fill="#3b82f6" stroke="white" stroke-width="3"/>', wrong: ["การประมวลผล", "เงื่อนไข"] },
+                { type: "proc", name: "การประมวลผล/คำนวณ", svg: '<rect x="10" y="25" width="80" height="50" fill="#10b981" stroke="white" stroke-width="3"/>', wrong: ["เริ่มต้น", "เงื่อนไข"] },
+                { type: "dec", name: "การตัดสินใจ (เงื่อนไข)", svg: '<polygon points="50,10 90,50 50,90 10,50" fill="#f59e0b" stroke="white" stroke-width="3"/>', wrong: ["รับข้อมูล", "ทิศทาง"] },
+                { type: "io", name: "รับ/แสดงข้อมูลทั่วไป", svg: '<polygon points="20,25 95,25 80,75 5,75" fill="#8b5cf6" stroke="white" stroke-width="3"/>', wrong: ["จุดเชื่อมต่อ", "เริ่มต้น"] },
+                { type: "arrow", name: "ทิศทางการทำงาน", svg: '<path d="M20,50 L70,50 M60,35 L80,50 L60,65" stroke="white" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>', wrong: ["ประมวลผล", "หน้าจอ"] },
+                { type: "conn", name: "จุดเชื่อมต่อหน้าเดียวกัน", svg: '<circle cx="50" cy="50" r="30" fill="#ef4444" stroke="white" stroke-width="3"/>', wrong: ["เงื่อนไข", "สิ้นสุด"] },
+                { type: "disp", name: "แสดงผลทางหน้าจอ", svg: '<path d="M10,50 C10,20 40,20 90,20 L90,80 L10,80 Z" fill="#06b6d4" stroke="white" stroke-width="3"/>', wrong: ["รับข้อมูล", "ทิศทาง"] },
+                { type: "man_in", name: "รับข้อมูลทางแป้นพิมพ์", svg: '<polygon points="10,40 90,20 90,80 10,80" fill="#ec4899" stroke="white" stroke-width="3"/>', wrong: ["เอกสาร", "จุดเชื่อมต่อ"] },
+                { type: "doc", name: "แสดงผลทางเครื่องพิมพ์", svg: '<path d="M15,10 L85,10 L85,70 C70,90 30,50 15,70 Z" fill="#64748b" stroke="white" stroke-width="3"/>', wrong: ["ประมวลผล", "เงื่อนไข"] },
+                { type: "pre_proc", name: "โปรแกรมย่อย", svg: '<g fill="#f43f5e" stroke="white" stroke-width="3"><rect x="10" y="20" width="80" height="60"/><line x1="25" y1="20" x2="25" y2="80"/><line x1="75" y1="20" x2="75" y2="80"/></g>', wrong: ["รับข้อมูล", "เริ่มต้น"] }
+            ]
+        };
+
+        // สถานะของแอพ
+        let gameData = JSON.parse(JSON.stringify(DEFAULT_GAME_DATA));
+        let appState = {
+            user: { name: '', class: '', roll: '' },
+            progress: { preTest: false, preScore: 0, l1: false, l2: false, l3: false, l4: false, l5: false, postTest: false, postScore: 0 },
+            currentQuizIdx: 0, quizScore: 0, isPostTestMode: false, currentQuizSet: []
+        };
+        let leaderboardDB = [];
+        let allStudentData = [];
+
+        let audioCtx, isBgmOn = true, isSfxOn = true, bgmInterval, noteIdx = 0;
+        // โน้ตเพลง 15 วินาที
+        const marioNotes = [
+            {f: 659.25, d: 150}, {f: 659.25, d: 150}, {f: 0, d: 150}, {f: 659.25, d: 150}, {f: 0, d: 150}, {f: 523.25, d: 150}, {f: 659.25, d: 150}, {f: 0, d: 150},
+            {f: 783.99, d: 150}, {f: 0, d: 450}, {f: 392.00, d: 150}, {f: 0, d: 450},
+            {f: 523.25, d: 150}, {f: 0, d: 300}, {f: 392.00, d: 150}, {f: 0, d: 300}, {f: 329.63, d: 150}, {f: 0, d: 300},
+            {f: 440.00, d: 150}, {f: 0, d: 150}, {f: 493.88, d: 150}, {f: 0, d: 150}, {f: 466.16, d: 150}, {f: 440.00, d: 150}, {f: 0, d: 150},
+            {f: 392.00, d: 100}, {f: 659.25, d: 100}, {f: 783.99, d: 100}, {f: 880.00, d: 150}, {f: 0, d: 150}, {f: 698.46, d: 150}, {f: 783.99, d: 150},
+            {f: 0, d: 150}, {f: 659.25, d: 150}, {f: 0, d: 150}, {f: 523.25, d: 150}, {f: 587.33, d: 150}, {f: 493.88, d: 150}, {f: 0, d: 450},
+            {f: 0, d: 1500} // พักวนลูป
+        ];
+
+        function initAudio() {
+            if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if(audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function toggleBGM() {
+            isBgmOn = !isBgmOn;
+            const btn = document.getElementById('btn-bgm');
+            if(!isBgmOn) {
+                btn.innerHTML = '<i class="fas fa-music text-gray-400"></i>'; btn.classList.replace('bg-green-500', 'bg-gray-200'); clearTimeout(bgmInterval);
+            } else {
+                btn.innerHTML = '<i class="fas fa-music"></i>'; btn.classList.replace('bg-gray-200', 'bg-green-500'); initAudio(); playBGM();
+            }
+        }
+        function toggleSFX() {
+            isSfxOn = !isSfxOn;
+            const btn = document.getElementById('btn-sfx');
+            if(!isSfxOn) { btn.innerHTML = '<i class="fas fa-volume-mute text-gray-400"></i>'; btn.classList.replace('bg-indigo-500', 'bg-gray-200'); } 
+            else { btn.innerHTML = '<i class="fas fa-volume-up"></i>'; btn.classList.replace('bg-gray-200', 'bg-indigo-500'); initAudio(); playSFX('click'); }
+        }
+        function playBGM() {
+            if(!isBgmOn || !audioCtx) return;
+            let note = marioNotes[noteIdx % marioNotes.length];
+            if (note.f > 0) {
+                const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                osc.type = 'square'; osc.frequency.value = note.f;
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                gain.gain.setValueAtTime(0.015, audioCtx.currentTime); 
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + note.d/1000);
+                osc.start(audioCtx.currentTime); osc.stop(audioCtx.currentTime + note.d/1000);
+            }
+            noteIdx++; bgmInterval = setTimeout(playBGM, note.d + 30);
+        }
+        function playSFX(type) {
+            if(!isSfxOn || !audioCtx) return;
+            const t = audioCtx.currentTime, osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            if(type === 'correct') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(987.77, t); osc.frequency.setValueAtTime(1318.51, t + 0.1);
+                gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                osc.start(t); osc.stop(t + 0.4);
+            } else if(type === 'wrong') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t); osc.frequency.linearRampToValueAtTime(100, t + 0.2);
+                gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.05); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                osc.start(t); osc.stop(t + 0.3);
+            } else if(type === 'click') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(300, t + 0.1);
+                gain.gain.setValueAtTime(0, t); gain.gain.linearRampToValueAtTime(0.1, t + 0.02); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+            } else if(type === 'pop') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(800, t); osc.frequency.exponentialRampToValueAtTime(100, t + 0.1);
+                gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+            }
+        }
+    </script>
+
+    <!-- UI HTML -->
+    <!-- 1. Login Page -->
+    <div id="view-login" class="min-h-screen flex items-center justify-center p-4 relative z-10">
+        <div class="glass p-8 md:p-12 rounded-3xl w-full max-w-5xl flex flex-col md:flex-row gap-10 items-center shadow-2xl relative border-2 border-white">
+            <button onclick="showView('view-admin-login')" class="absolute top-6 right-6 text-blue-700 bg-white px-4 py-2 rounded-full shadow hover:bg-gray-50 text-sm font-bold"><i class="fas fa-cogs mr-1"></i> Admin</button>
+            <div class="flex-1 text-center md:text-left flex flex-col items-center md:items-start">
+                <img src="https://images.unsplash.com/photo-1516116216624-53e697fedbea?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Tech Learning" class="w-full h-56 object-cover rounded-2xl shadow-lg mb-6 border-4 border-white">
+                <span class="bg-blue-100 text-blue-800 px-4 py-1 rounded-full text-sm font-black shadow-sm mb-2">บทเรียนออนไลน์ ม.1</span>
+                <h1 class="text-4xl md:text-5xl font-black text-gray-800 mb-2 leading-tight">หน่วยที่ 1<br><span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">การออกแบบอัลกอริทึม</span></h1>
+                <p class="text-lg text-gray-600 font-bold"><i class="fas fa-laptop-code text-blue-500 mr-2"></i>วิชาเทคโนโลยี (วิทยาการคำนวณ)</p>
+            </div>
+            <div class="w-full md:w-[400px] bg-white p-8 rounded-3xl shadow-xl border-2 border-blue-50">
+                <h2 class="text-2xl font-black mb-6 text-center text-gray-800 border-b-2 border-gray-100 pb-4">ลงทะเบียนเรียน</h2>
+                <div class="space-y-4">
+                    <input id="login-name" type="text" placeholder="ชื่อ-นามสกุล" class="w-full p-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 font-bold text-gray-700 outline-none">
+                    <div class="flex gap-3">
+                        <select id="login-class" class="w-1/2 p-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 font-bold text-blue-700 outline-none">
+                            <option value="">ห้องเรียน</option><option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option><option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option>
+                        </select>
+                        <input id="login-roll" type="number" placeholder="เลขที่" class="w-1/2 p-4 rounded-xl border-2 border-gray-200 focus:border-blue-500 font-bold text-center outline-none">
+                    </div>
+                    <button onclick="handleLogin()" class="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white p-4 rounded-xl font-black text-xl shadow-lg border-b-4 border-blue-800 transition transform hover:-translate-y-1"><i class="fas fa-rocket mr-2"></i>เริ่มเรียนเลย</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Admin Login -->
+    <div id="view-admin-login" class="hidden min-h-screen flex items-center justify-center p-4 z-20">
+        <div class="bg-white p-8 rounded-3xl w-full max-w-sm text-center shadow-2xl relative border-4 border-gray-200">
+            <button onclick="showView('view-login')" class="absolute top-4 left-4 text-gray-500 hover:text-black font-bold"><i class="fas fa-arrow-left"></i> กลับ</button>
+            <h2 class="text-2xl font-black mb-6 mt-4"><i class="fas fa-shield-alt text-blue-600 mr-2"></i>Admin Login</h2>
+            <input id="admin-user" type="text" placeholder="Username" class="w-full p-4 rounded-xl border-2 border-gray-200 mb-3 font-bold text-center outline-none">
+            <input id="admin-pass" type="password" placeholder="Password" class="w-full p-4 rounded-xl border-2 border-gray-200 mb-6 font-bold text-center outline-none">
+            <button onclick="handleAdminLogin()" class="w-full bg-gray-900 text-white p-4 rounded-xl font-bold text-lg hover:bg-black transition shadow-lg border-b-4 border-gray-700">เข้าสู่ระบบจัดการ</button>
+        </div>
+    </div>
+
+    <!-- 3. Main Application -->
+    <div id="view-main" class="hidden min-h-screen flex-col overflow-hidden relative">
+        <header class="glass z-40 px-4 py-3 flex justify-between items-center shadow-sm border-b border-white">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="w-10 h-10 bg-white rounded-xl shadow border border-blue-100 text-blue-600 text-xl hover:bg-blue-50 transition"><i class="fas fa-bars"></i></button>
+                <h1 class="font-black text-lg md:text-xl text-blue-800 drop-shadow-sm hidden sm:block">วิทยาการคำนวณ ม.1</h1>
+            </div>
+            <div class="flex items-center gap-2 md:gap-3">
+                <button id="btn-bgm" onclick="toggleBGM()" class="w-10 h-10 rounded-xl bg-green-500 text-white shadow border flex justify-center items-center hover:bg-green-600 transition"><i class="fas fa-music text-lg"></i></button>
+                <button id="btn-sfx" onclick="toggleSFX()" class="w-10 h-10 rounded-xl bg-indigo-500 text-white shadow border flex justify-center items-center hover:bg-indigo-600 transition"><i class="fas fa-volume-up text-lg"></i></button>
+                <div class="hidden md:block text-right bg-blue-50 px-4 py-1 rounded-xl border border-blue-100 shadow-inner">
+                    <p id="top-name" class="text-sm font-black text-blue-900"></p>
+                    <p id="top-room" class="text-xs font-bold text-blue-600"></p>
+                </div>
+                <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-xl shadow font-bold transition border-b-2 border-red-700 flex items-center gap-2"><i class="fas fa-sign-out-alt"></i> <span class="hidden md:inline">ออก</span></button>
+            </div>
+        </header>
+
+        <div class="flex flex-1 relative h-[calc(100vh-65px)]">
+            <aside id="sidebar" class="absolute md:relative z-30 w-64 h-full glass shadow-2xl md:shadow-lg transition-transform duration-300 transform -translate-x-full md:translate-x-0 border-r border-white flex flex-col bg-white bg-opacity-95">
+                <div class="p-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-black flex justify-between items-center text-lg shadow-inner">
+                    <span><i class="fas fa-map-signs mr-2"></i> เมนูภารกิจ</span>
+                    <button class="md:hidden hover:text-red-300" onclick="toggleSidebar()"><i class="fas fa-times text-xl"></i></button>
+                </div>
+                <nav id="nav-menu" class="p-3 space-y-2 overflow-y-auto flex-1"></nav>
+            </aside>
+
+            <main class="flex-1 h-full overflow-y-auto p-4 md:p-6 pb-20 scroll-smooth flex justify-center" id="content-area">
+                <div class="w-full max-w-5xl mx-auto flex flex-col">
+                    
+                    <!-- Home Section (Leaderboard) -->
+                    <div id="sec-home" class="content-section w-full">
+                        <div class="glass p-8 rounded-3xl text-center shadow-2xl mb-8 border-2 border-white bg-white bg-opacity-90">
+                            <h2 class="text-3xl md:text-4xl font-black text-gray-800 mb-3">ยินดีต้อนรับสู่ภารกิจ!</h2>
+                            <p class="text-gray-600 mb-8 font-bold text-lg">เรียนรู้ผ่านมินิเกม ทำแบบทดสอบ และชิงอันดับหนึ่งของสายชั้น!</p>
+                            <button onclick="navigate('pre-test')" class="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-10 py-5 rounded-2xl font-black text-xl md:text-2xl shadow-xl border-b-4 border-blue-800 transition transform hover:-translate-y-1"><i class="fas fa-rocket mr-2 text-yellow-300"></i> เริ่มแบบทดสอบก่อนเรียน</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-xl border-2 border-blue-100 w-full relative overflow-hidden">
+                            <div class="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-400 to-orange-500"></div>
+                            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 mt-2">
+                                <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-600 to-orange-600 flex items-center"><i class="fas fa-trophy mr-3 text-3xl text-yellow-500 drop-shadow"></i> กระดานผู้นำ</h3>
+                                <div class="relative w-full md:w-64">
+                                    <input type="text" id="leaderboard-search" oninput="renderLeaderboard()" placeholder="ค้นหาชื่อ หรือ ห้อง..." class="w-full px-4 py-3 pl-10 rounded-full border-2 border-blue-200 bg-gray-50 focus:outline-none focus:border-blue-500 shadow-sm font-bold">
+                                    <i class="fas fa-search absolute left-4 top-4 text-blue-400"></i>
+                                </div>
+                            </div>
+                            <div class="overflow-x-auto rounded-xl border border-gray-100 shadow-sm">
+                                <table class="w-full text-left border-collapse min-w-[500px]">
+                                    <thead class="bg-blue-50 border-b-2 border-blue-200 text-blue-900"><tr><th class="p-4 text-center font-bold">อันดับ</th><th class="p-4 font-bold">ชื่อ-นามสกุล</th><th class="p-4 text-center font-bold">ห้อง</th><th class="p-4 text-center font-bold">เลขที่</th><th class="p-4 text-center font-bold">คะแนนรวม</th></tr></thead>
+                                    <tbody id="leaderboard-body" class="divide-y divide-gray-100 font-medium"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quiz Section -->
+                    <div id="sec-quiz" class="content-section hidden w-full">
+                        <div class="glass p-6 md:p-10 rounded-3xl shadow-2xl border-2 border-white bg-white bg-opacity-95">
+                            <div class="flex justify-between items-center mb-6 border-b-2 border-gray-100 pb-4">
+                                <div>
+                                    <h2 id="quiz-title" class="text-2xl md:text-3xl font-black text-blue-800">แบบทดสอบ</h2>
+                                    <p class="text-blue-600 font-bold mt-2 bg-blue-50 px-4 py-1 rounded-full inline-block border border-blue-200">ข้อที่ <span id="quiz-q-num">1</span>/10</p>
+                                </div>
+                                <div class="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-3 rounded-2xl font-black text-xl shadow-md border-b-4 border-yellow-600"><i class="fas fa-star text-yellow-100 mr-1 animate-pulse"></i> <span id="quiz-score">0</span></div>
+                            </div>
+                            <div class="flex items-center gap-4 mb-8 bg-gray-50 p-4 rounded-2xl border border-gray-200 shadow-inner">
+                                <i class="fas fa-stopwatch text-red-500 text-3xl animate-pulse"></i>
+                                <div class="w-full bg-gray-200 h-6 rounded-full overflow-hidden shadow-inner"><div id="quiz-timer-bar" class="h-full bg-green-500 w-full transition-all ease-linear"></div></div>
+                                <span id="quiz-time-text" class="font-black text-red-600 text-2xl w-10 text-right font-mono">20</span>
+                            </div>
+                            <div class="min-h-[300px]">
+                                <h3 id="quiz-q" class="text-xl md:text-2xl font-bold mb-8 leading-relaxed text-gray-800 text-center md:text-left min-h-[80px]">คำถาม?</h3>
+                                <div id="quiz-opts" class="space-y-4"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- L1 -->
+                    <div id="sec-lesson-1" class="content-section hidden w-full"></div>
+                    <!-- L2 -->
+                    <div id="sec-lesson-2" class="content-section hidden w-full"></div>
+                    <!-- L3 -->
+                    <div id="sec-lesson-3" class="content-section hidden w-full"></div>
+                    <!-- L4 -->
+                    <div id="sec-lesson-4" class="content-section hidden w-full"></div>
+                    
+                    <!-- L5 (AR Balloon Pop) -->
+                    <div id="sec-lesson-5" class="content-section hidden w-full h-full flex flex-col pb-8">
+                        <div id="l5-knowledge-container"></div>
+                        
+                        <div class="relative flex-1 bg-black rounded-3xl overflow-hidden shadow-2xl border-4 border-yellow-400 min-h-[500px]" id="l5-game-area">
+                            <!-- Video Camera -->
+                            <video id="ar-video" class="absolute inset-0 w-full h-full object-cover transform scale-x-[-1] hidden" autoplay playsinline></video>
+                            
+                            <!-- Background gradient for Touch Mode or AR Overlay -->
+                            <div id="ar-overlay" class="absolute inset-0 bg-gradient-to-b from-blue-300 via-purple-300 to-pink-300 opacity-90 transition-opacity duration-300"></div>
+                            
+                            <!-- Top UI -->
+                            <div class="absolute top-4 right-4 z-20 flex gap-2">
+                                 <button id="cam-toggle" class="bg-gray-800 text-white p-2 w-12 h-12 rounded-xl shadow border border-gray-600 flex justify-center items-center" onclick="toggleCamera()"><i class="fas fa-video text-xl"></i></button>
+                                 <button onclick="resetL5()" class="bg-red-500 hover:bg-red-600 text-white p-2 w-12 h-12 rounded-xl shadow border-b-2 border-red-700 flex justify-center items-center"><i class="fas fa-redo text-xl"></i></button>
+                            </div>
+                            <div class="absolute top-4 left-4 z-20 bg-white px-5 py-2 rounded-2xl font-black text-purple-600 shadow-lg border-2 border-purple-100 flex items-center">
+                                <i class="fas fa-star text-yellow-400 mr-2"></i> คะแนน: <span id="l5-score" class="ml-2 text-2xl">0</span>
+                            </div>
+
+                            <!-- Question Box -->
+                            <div id="l5-question-box" class="absolute top-20 left-1/2 transform -translate-x-1/2 bg-white p-5 rounded-3xl shadow-2xl z-20 text-center flex-col items-center border-b-8 border-yellow-500 w-11/12 max-w-sm hidden">
+                                <p class="text-gray-600 font-extrabold mb-3 text-lg bg-gray-100 rounded-full px-4 py-1">นี่คือสัญลักษณ์อะไร?</p>
+                                <div id="l5-svg" class="w-32 h-32 flex justify-center items-center drop-shadow-md mb-2"></div>
+                                <p id="l5-progress" class="text-sm font-bold text-yellow-600 absolute bottom-2 right-4">ข้อ 1/10</p>
+                            </div>
+
+                            <!-- Start / Tutorial Screen -->
+                            <div id="l5-start-screen" class="absolute inset-0 z-30 bg-black bg-opacity-80 flex flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+                                <i class="fas fa-vr-cardboard text-6xl text-yellow-400 mb-6 drop-shadow-[0_0_15px_rgba(250,204,21,0.8)]"></i>
+                                <h2 class="text-3xl md:text-4xl font-black text-white mb-4">โหมด AR: จิ้มลูกโป่ง</h2>
+                                <p class="text-yellow-200 mb-8 font-bold text-lg max-w-md leading-relaxed bg-black bg-opacity-40 p-4 rounded-xl border border-yellow-500">
+                                    ระบบใช้ AI ตรวจจับปลายนิ้วชี้ของคุณเพื่อจิ้มลูกโป่ง<br><br>
+                                    <span class="text-white text-sm"><i class="fas fa-info-circle text-blue-400"></i> หากไม่มีกล้อง หรือกล้องไม่ทำงาน สามารถใช้เมาส์หรือนิ้วสัมผัสที่จอแทนได้ครับ</span>
+                                </p>
+                                <button onclick="initL5Tutorial()" class="bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 text-white font-black py-4 px-10 rounded-2xl shadow-xl border-b-4 border-yellow-700 animate-bounce text-xl">
+                                    <i class="fas fa-play mr-2"></i> เริ่มทดสอบระบบ (Calibration)
+                                </button>
+                            </div>
+
+                            <!-- Next Level Button (Hidden initially) -->
+                            <div id="l5-next-btn-container" class="absolute inset-0 z-40 bg-black bg-opacity-80 hidden flex-col items-center justify-center p-8 text-center backdrop-blur-md">
+                                <div class="bg-white p-8 rounded-3xl max-w-md w-full shadow-2xl">
+                                    <i class="fas fa-trophy text-6xl text-yellow-500 mb-4"></i>
+                                    <h2 class="text-3xl font-black text-purple-800 mb-2">ยอดเยี่ยม!</h2>
+                                    <p class="text-gray-600 font-bold mb-6">คุณทำคะแนนผังงานได้ <span id="l5-final-score" class="text-3xl text-green-500 mx-1"></span> คะแนน</p>
+                                    <div class="flex flex-col gap-3">
+                                        <button onclick="navigate('post-test')" class="bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow border-b-4 border-green-700 text-xl animate-bounce">
+                                            <i class="fas fa-arrow-right mr-2"></i> สอบหลังเรียน
+                                        </button>
+                                        <button onclick="resetL5()" class="bg-gray-200 text-gray-700 font-bold py-3 rounded-xl">เล่นอีกครั้ง</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Balloons Container -->
+                            <div id="balloons-container" class="absolute inset-0 overflow-hidden z-10 pointer-events-none"></div>
+
+                            <!-- AR Pointer (Index Finger) -->
+                            <div id="ar-pointer" class="absolute w-8 h-8 bg-yellow-400 rounded-full shadow-[0_0_20px_#facc15] pointer-events-none hidden z-50 transform -translate-x-1/2 -translate-y-1/2 border-2 border-white flex justify-center items-center opacity-80">
+                                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard -->
+                    <div id="sec-dashboard" class="content-section hidden w-full">
+                         <div class="max-w-4xl mx-auto glass rounded-3xl p-8 md:p-12 text-center shadow-2xl border-t-8 border-green-500 bg-white relative overflow-hidden" id="dash-content">
+                            <i class="fas fa-graduation-cap text-6xl text-green-500 mb-4 drop-shadow-md"></i>
+                            <h2 class="text-4xl font-black mb-2 text-gray-800">ยินดีด้วย! คุณเรียนจบแล้ว</h2>
+                            <p id="dash-name" class="text-xl font-bold text-blue-800 mb-8 bg-blue-50 inline-block px-6 py-2 rounded-full border border-blue-200"></p>
+                            
+                            <div class="flex flex-col sm:flex-row justify-center items-center gap-6 mb-8">
+                                <div class="bg-gray-50 p-6 rounded-3xl shadow-inner w-full sm:w-48 border border-gray-200">
+                                    <p class="text-gray-500 font-bold mb-2">ก่อนเรียน</p>
+                                    <p id="dash-pre" class="text-5xl font-black text-gray-700">0</p>
+                                </div>
+                                <i class="fas fa-chevron-right text-3xl text-gray-300 hidden sm:block"></i>
+                                <div class="bg-white p-6 rounded-3xl shadow-xl w-full sm:w-48 border-2 border-green-400 transform sm:scale-110">
+                                    <p class="text-gray-600 font-black mb-2">หลังเรียน</p>
+                                    <p id="dash-post" class="text-6xl font-black text-green-500 drop-shadow">0</p>
+                                </div>
+                            </div>
+                            
+                            <div class="w-full max-w-sm mx-auto bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 rounded-2xl font-black text-xl shadow-lg mb-8 border-2 border-blue-300">
+                                <span id="dash-dev"></span>
+                            </div>
+                            
+                            <div class="flex flex-wrap justify-center gap-4" id="dash-btns">
+                                <button onclick="downloadPDF()" class="bg-red-500 hover:bg-red-600 text-white px-8 py-3 rounded-xl font-black text-lg shadow-md border-b-4 border-red-700"><i class="fas fa-file-pdf mr-2"></i> โหลด PDF</button>
+                                <button onclick="downloadExcel()" class="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-xl font-black text-lg shadow-md border-b-4 border-green-800"><i class="fas fa-file-excel mr-2"></i> โหลด Excel</button>
+                            </div>
+                        </div>
+                    </div>
+                </div> 
+            </main>
+        </div>
+    </div>
+
+    <!-- 4. Admin Dashboard -->
+    <div id="view-admin-dashboard" class="hidden min-h-screen flex-col p-4 md:p-8 bg-gray-900 z-50">
+        <div class="bg-white rounded-3xl p-6 w-full max-w-6xl mx-auto flex-1 flex flex-col shadow-2xl border-4 border-blue-500">
+            <div class="flex justify-between items-center mb-6 border-b-2 border-gray-200 pb-4">
+                <h2 class="text-3xl font-black text-gray-800"><i class="fas fa-cogs text-blue-600 mr-2"></i> ศูนย์ควบคุม (Admin)</h2>
+                <button onclick="location.reload()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl font-bold shadow border-b-4 border-red-700"><i class="fas fa-sign-out-alt"></i> ออก</button>
+            </div>
+            <div class="flex border-b border-gray-300 mb-6">
+                <button onclick="switchAdminTab('tab-config')" id="btn-tab-config" class="py-3 px-6 font-black text-blue-700 border-b-4 border-blue-500 bg-blue-50">ตั้งค่าโจทย์เกม</button>
+                <button onclick="switchAdminTab('tab-students')" id="btn-tab-students" class="py-3 px-6 font-bold text-gray-500 hover:text-blue-700 transition">ข้อมูลนักเรียน</button>
+            </div>
+            
+            <div id="tab-config" class="flex-1 flex flex-col">
+                <select id="admin-section-select" onchange="loadAdminEditor()" class="w-full p-3 border-2 rounded-xl bg-gray-50 font-bold mb-4">
+                    <option value="quiz">แบบทดสอบก่อน/หลังเรียน</option>
+                    <option value="game1">ด่าน 1: นามธรรม (แยกของ)</option><option value="game2">ด่าน 2: อัลกอริทึม (เรียงลำดับ)</option>
+                    <option value="game3">ด่าน 3: ภาษาธรรมชาติ (จับคู่)</option><option value="game4">ด่าน 4: รหัสลำลอง</option>
+                    <option value="game5">ด่าน 5: ผังงาน (AR)</option>
+                </select>
+                <textarea id="admin-editor" class="w-full flex-1 min-h-[300px] p-4 border-2 rounded-xl font-mono text-sm bg-gray-800 text-green-400 mb-4"></textarea>
+                <button onclick="saveAdminData()" class="w-full bg-green-600 text-white font-black py-4 rounded-2xl shadow-lg text-xl border-b-4 border-green-800"><i class="fas fa-save mr-2"></i> บันทึกเข้าระบบ</button>
+            </div>
+            
+            <div id="tab-students" class="flex-1 hidden flex-col">
+                <div class="flex gap-4 mb-4 items-center">
+                    <label class="font-bold">ห้อง:</label>
+                    <select id="admin-filter" onchange="renderAdminStudents()" class="p-2 border-2 rounded-lg font-bold text-blue-700"><option value="all">ทั้งหมด</option><option value="ม.1/1">ม.1/1</option><option value="ม.1/2">ม.1/2</option><option value="ม.1/3">ม.1/3</option><option value="ม.1/4">ม.1/4</option><option value="ม.1/5">ม.1/5</option></select>
+                    <button onclick="fetchServerData()" class="ml-auto bg-blue-500 text-white px-4 py-2 rounded-lg font-bold"><i class="fas fa-sync"></i> รีเฟรช</button>
+                </div>
+                <div class="overflow-x-auto rounded-xl border">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-800 text-white text-sm"><tr><th class="p-3">ห้อง</th><th class="p-3">เลขที่</th><th class="p-3">ชื่อ</th><th class="p-3">ก่อน</th><th class="p-3">หลัง</th><th class="p-3 text-center">จัดการ</th></tr></thead>
+                        <tbody id="admin-student-tbody" class="divide-y divide-gray-200 text-sm"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ฟังก์ชันสร้างป้ายความรู้ (Knowledge Panel) แบบเด่นๆ
+        function getKnowledgePanel(title, text, colorClass) {
+            return `
+            <div class="relative bg-gradient-to-br from-${colorClass}-50 to-white p-6 md:p-8 rounded-3xl border-4 border-${colorClass}-300 shadow-[0_0_20px_rgba(0,0,0,0.1)] mb-8 overflow-hidden group">
+                <div class="absolute -top-6 -right-6 p-8 opacity-10 group-hover:opacity-20 transition duration-500 transform group-hover:scale-110">
+                    <i class="fas fa-lightbulb text-9xl text-${colorClass}-500 animate-pulse"></i>
+                </div>
+                <h3 class="text-2xl md:text-3xl font-black text-${colorClass}-700 mb-4 flex items-center relative z-10">
+                    <i class="fas fa-book-reader mr-3"></i> ทฤษฎีก่อนลุย: ${title}
+                </h3>
+                <p class="text-gray-700 font-semibold text-lg md:text-xl leading-relaxed relative z-10 bg-white bg-opacity-70 p-5 rounded-2xl border border-${colorClass}-100 shadow-sm">
+                    ${text}
+                </p>
+            </div>`;
+        }
+
+        // สร้างปุ่มด่านถัดไป
+        function getNextLevelButton(nextLevelId) {
+            return `
+            <div class="p-6 bg-green-50 border-2 border-green-400 rounded-2xl text-center shadow-md animate-[fadeIn_0.5s]">
+                <h3 class="text-2xl font-black text-green-700 mb-4"><i class="fas fa-star text-yellow-500 mr-2"></i> ยอดเยี่ยม! คุณผ่านด่านนี้แล้ว</h3>
+                <div class="flex flex-col sm:flex-row justify-center gap-4">
+                    <button onclick="renderCurrentGame()" class="bg-gray-400 hover:bg-gray-500 text-white font-bold py-3 px-8 rounded-xl shadow w-full sm:w-auto transition"><i class="fas fa-redo mr-1"></i> เล่นอีกครั้ง</button>
+                    <button onclick="navigate('${nextLevelId}')" class="bg-green-600 hover:bg-green-700 text-white font-black py-3 px-8 rounded-xl shadow-lg border-b-4 border-green-800 animate-bounce w-full sm:w-auto transition"><i class="fas fa-arrow-right mr-2"></i> ลุยด่านต่อไป</button>
+                </div>
+            </div>`;
+        }
+        function renderCurrentGame() {
+            if(!document.getElementById('sec-lesson-1').classList.contains('hidden')) renderGame1(true);
+            else if(!document.getElementById('sec-lesson-2').classList.contains('hidden')) renderGame2(true);
+            else if(!document.getElementById('sec-lesson-3').classList.contains('hidden')) renderGame3(true);
+            else if(!document.getElementById('sec-lesson-4').classList.contains('hidden')) renderGame4(true);
+        }
+
+        // Drag & Drop Handlers
+        let draggedEl = null;
+        function drag(ev) { draggedEl = ev.target; setTimeout(()=> ev.target.classList.add('opacity-50'), 0); }
+        function dragEnd(ev) { ev.target.classList.remove('opacity-50'); draggedEl = null; }
+        function allowDrop(ev) { ev.preventDefault(); if(ev.currentTarget.classList.contains('dropzone')) ev.currentTarget.classList.add('dragover'); }
+        function leaveDrop(ev) { if(ev.currentTarget.classList.contains('dropzone')) ev.currentTarget.classList.remove('dragover'); }
+        function dropMatch(ev) {
+            ev.preventDefault(); ev.currentTarget.classList.remove('dragover');
+            if(draggedEl && ev.currentTarget.classList.contains('dropzone')) {
+                if(ev.currentTarget.children.length === 0 || ev.currentTarget.id.includes('pool')) { ev.currentTarget.appendChild(draggedEl); playSFX('click'); }
+            }
+        }
+        document.addEventListener("dragleave", leaveDrop, false);
+
+        // Core Functions
+        function showView(viewId) {
+            ['view-login', 'view-admin-login', 'view-main', 'view-admin-dashboard'].forEach(id => {
+                document.getElementById(id).classList.add('hidden'); document.getElementById(id).classList.remove('flex');
+            });
+            document.getElementById(viewId).classList.remove('hidden'); document.getElementById(viewId).classList.add('flex');
+        }
+
+        function handleLogin() {
+            const name = document.getElementById('login-name').value.trim(), cls = document.getElementById('login-class').value, roll = document.getElementById('login-roll').value;
+            if(!name || !cls || !roll) return Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกให้ครบถ้วน' });
+            initAudio(); playSFX('correct'); if(isBgmOn) playBGM();
+            appState.user = { name, class: cls, roll: parseInt(roll) };
+            document.getElementById('top-name').innerText = name; document.getElementById('top-room').innerText = `${cls} เลขที่ ${roll}`;
+            showView('view-main'); renderSidebar(); navigate('home'); renderLeaderboard();
+        }
+        function handleLogout() { Swal.fire({ title: 'ออกระบบ?', icon: 'question', showCancelButton: true, confirmButtonText: 'ออก' }).then((r) => { if (r.isConfirmed) location.reload(); }); }
+        
+        function toggleSidebar() { 
+            playSFX('click'); 
+            const sb = document.getElementById('sidebar'); 
+            if(sb.classList.contains('hidden') || sb.classList.contains('-translate-x-full')) sb.classList.remove('hidden', '-translate-x-full');
+            else sb.classList.add('-translate-x-full');
+        }
+
+        function renderSidebar() {
+            const menu = document.getElementById('nav-menu');
+            const items = [
+                { id: 'home', icon: 'fa-home', text: 'หน้าหลัก', locked: false },
+                { id: 'pre-test', icon: 'fa-clipboard-list', text: 'ก่อนเรียน', locked: appState.progress.preTest, color: 'text-blue-600', done: appState.progress.preTest },
+                { id: 'lesson-1', icon: 'fa-brain', text: 'ด่าน 1: นามธรรม', locked: !appState.progress.preTest, color: 'text-purple-600', done: appState.progress.l1 },
+                { id: 'lesson-2', icon: 'fa-list-ol', text: 'ด่าน 2: อัลกอริทึม', locked: !appState.progress.l1, color: 'text-emerald-600', done: appState.progress.l2 },
+                { id: 'lesson-3', icon: 'fa-comment-dots', text: 'ด่าน 3: ภาษาธรรมชาติ', locked: !appState.progress.l2, color: 'text-teal-600', done: appState.progress.l3 },
+                { id: 'lesson-4', icon: 'fa-code', text: 'ด่าน 4: รหัสลำลอง', locked: !appState.progress.l3, color: 'text-orange-600', done: appState.progress.l4 },
+                { id: 'lesson-5', icon: 'fa-vr-cardboard', text: 'ด่าน 5: ผังงาน (AR)', locked: !appState.progress.l4, color: 'text-yellow-600', done: appState.progress.l5 },
+                { id: 'post-test', icon: 'fa-trophy', text: 'หลังเรียน', locked: !appState.progress.l5, color: 'text-red-600', done: appState.progress.postTest },
+                { id: 'dashboard', icon: 'fa-chart-pie', text: 'สรุปผล', locked: !appState.progress.postTest, color: 'text-indigo-600' }
+            ];
+            menu.innerHTML = items.map(i => {
+                let badge = i.done && i.id!=='home'&&i.id!=='dashboard' ? `<span class="ml-auto text-[10px] bg-green-500 text-white px-2 py-1 rounded-full">ทำแล้ว</span>` : (i.locked && i.id!=='home' ? `<i class="fas fa-lock text-red-400 ml-auto"></i>` : '');
+                let opacity = i.locked ? 'opacity-50 bg-gray-50' : 'hover:bg-blue-50 cursor-pointer bg-white';
+                if(i.done && i.id!=='dashboard'&&i.id!=='home') opacity = 'bg-green-50 border-green-200';
+                return `<div onclick="itemClick('${i.id}', ${i.locked})" class="flex items-center p-3 mb-2 rounded-xl transition border ${opacity}"><div class="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-3"><i class="fas ${i.icon} ${i.color||'text-gray-500'}"></i></div><span class="font-bold text-sm">${i.text}</span>${badge}</div>`;
+            }).join('');
+        }
+        function itemClick(id, locked) {
+            playSFX('click');
+            if (locked) return Swal.fire('ถูกล็อก!', 'ผ่านด่านก่อนหน้าก่อนนะ', 'warning');
+            if (window.innerWidth < 768) document.getElementById('sidebar').classList.add('-translate-x-full');
+            navigate(id);
+        }
+
+        function navigate(id) {
+            document.querySelectorAll('.content-section').forEach(el => el.classList.add('hidden'));
+            if(id==='pre-test' || id==='post-test') { startQuiz(id==='post-test'); document.getElementById('sec-quiz').classList.remove('hidden'); }
+            else if(id==='lesson-1') { renderGame1(); document.getElementById('sec-lesson-1').classList.remove('hidden'); }
+            else if(id==='lesson-2') { renderGame2(); document.getElementById('sec-lesson-2').classList.remove('hidden'); }
+            else if(id==='lesson-3') { renderGame3(); document.getElementById('sec-lesson-3').classList.remove('hidden'); }
+            else if(id==='lesson-4') { renderGame4(); document.getElementById('sec-lesson-4').classList.remove('hidden'); }
+            else if(id==='lesson-5') { document.getElementById('sec-lesson-5').classList.remove('hidden'); setupL5UI(); }
+            else if(id==='dashboard') { renderDashboard(); document.getElementById('sec-dashboard').classList.remove('hidden'); }
+            else document.getElementById('sec-home').classList.remove('hidden');
+        }
+
+        // Quiz
+        let timerInterval;
+        function startQuiz(isPost) {
+            appState.isPostTestMode = isPost; appState.currentQuizIdx = 0; appState.quizScore = 0;
+            document.getElementById('quiz-title').innerText = isPost ? "สอบหลังเรียน" : "สอบก่อนเรียน";
+            appState.currentQuizSet = JSON.parse(JSON.stringify(gameData.quiz)).sort(() => Math.random() - 0.5);
+            appState.currentQuizSet.forEach(q => q.shuffledOpts = q.options.map((opt, i) => ({ text: opt, cor: i === q.a })).sort(() => Math.random() - 0.5));
+            renderQuizQ();
+        }
+        function renderQuizQ() {
+            clearInterval(timerInterval);
+            const q = appState.currentQuizSet[appState.currentQuizIdx];
+            document.getElementById('quiz-q-num').innerText = appState.currentQuizIdx + 1;
+            document.getElementById('quiz-q').innerText = `${appState.currentQuizIdx + 1}. ${q.q}`;
+            document.getElementById('quiz-score').innerText = appState.quizScore;
+            document.getElementById('quiz-opts').innerHTML = q.shuffledOpts.map((opt, i) => `
+                <button onclick="ansQuiz(${i}, ${opt.cor})" id="opt-${i}" class="quiz-btn w-full text-left p-4 rounded-xl border-4 border-gray-100 hover:border-blue-400 hover:bg-blue-50 bg-white font-bold text-lg shadow-sm flex items-center transition">
+                    <span class="w-10 h-10 flex items-center justify-center rounded-full bg-blue-100 text-blue-700 mr-4 font-black flex-shrink-0">${['ก', 'ข', 'ค', 'ง'][i]}</span><span>${opt.text}</span>
+                </button>`).join('');
+            
+            let t = 20; document.getElementById('quiz-time-text').innerText = t;
+            const bar = document.getElementById('quiz-timer-bar'); bar.style.width = '100%'; bar.className = 'h-full bg-green-500 w-full transition-all ease-linear';
+            timerInterval = setInterval(() => {
+                t--; document.getElementById('quiz-time-text').innerText = t; bar.style.width = `${(t/20)*100}%`;
+                if(t<=5) { bar.className = 'h-full bg-red-500 w-full transition-all ease-linear'; if(t>0) playSFX('click'); }
+                if(t<=0) ansQuiz(-1, false, true);
+            }, 1000);
+        }
+        function ansQuiz(idx, isCor, isTimeOut=false) {
+            clearInterval(timerInterval);
+            const btns = document.querySelectorAll('.quiz-btn');
+            btns.forEach(b => { b.disabled = true; b.classList.add('opacity-70'); b.classList.remove('hover:border-blue-400', 'hover:bg-blue-50'); });
+            if(!isTimeOut && idx >= 0) {
+                const btn = document.getElementById(`opt-${idx}`); btn.classList.remove('opacity-70');
+                if(isCor) {
+                    appState.quizScore++; playSFX('correct'); btn.classList.add('bg-green-500', 'text-white', 'border-green-600');
+                    btn.querySelector('span').classList.replace('bg-blue-100','bg-white'); btn.querySelector('span').classList.replace('text-blue-700','text-green-600');
+                } else {
+                    playSFX('wrong'); btn.classList.add('bg-red-500', 'text-white', 'border-red-600');
+                    btn.querySelector('span').classList.replace('bg-blue-100','bg-white'); btn.querySelector('span').classList.replace('text-blue-700','text-red-600');
+                    appState.currentQuizSet[appState.currentQuizIdx].shuffledOpts.forEach((opt, i) => {
+                        if(opt.cor) { document.getElementById(`opt-${i}`).classList.remove('opacity-70'); document.getElementById(`opt-${i}`).classList.add('border-green-500', 'bg-green-50'); }
+                    });
+                }
+            } else { playSFX('wrong'); Swal.fire({title:'หมดเวลา!', timer:1000, showConfirmButton:false, icon:'warning'}); }
+            
+            document.getElementById('quiz-score').innerText = appState.quizScore;
+            appState.currentQuizIdx++;
+            setTimeout(() => { if(appState.currentQuizIdx < 10) renderQuizQ(); else finishQuiz(); }, 1500);
+        }
+        function finishQuiz() {
+            if(appState.isPostTestMode) {
+                appState.progress.postTest = true; appState.progress.postScore = appState.quizScore;
+                saveToGoogleSheets().then(()=> { renderSidebar(); navigate('dashboard'); });
+            } else {
+                appState.progress.preTest = true; appState.progress.preScore = appState.quizScore;
+                Swal.fire('สำเร็จ', `ก่อนเรียน ${appState.quizScore}/10`, 'success').then(()=> { renderSidebar(); navigate('lesson-1'); });
+            }
+        }
+
+        // L1
+        function renderGame1(force = false) {
+            if(appState.progress.l1 && !force) return;
+            const kp = getKnowledgePanel('แนวคิดเชิงนามธรรม', 'การแยกแยะ <b>"สาระสำคัญ (จำเป็น)"</b> ออกจากสิ่งที่ไม่จำเป็น ช่วยให้แก้ปัญหาได้ตรงจุด', 'purple');
+            let html = `${kp}<h3 class="text-xl font-black text-purple-800 mb-3"><i class="fas fa-gamepad"></i> ภารกิจ: กระเป๋าเอาชีวิตรอดจากซอมบี้</h3><p class="mb-4 font-bold text-lg text-gray-600">ลากสิ่งของที่ "จำเป็น" และ "ไม่จำเป็น" ใส่กล่องให้ถูกต้อง</p>
+                <div class="dropzone flex flex-wrap gap-3 justify-center bg-gray-50 p-6 rounded-2xl border-2 border-dashed border-gray-300 min-h-[120px] mb-6" id="l1-pool" ondrop="dropMatch(event)" ondragover="allowDrop(event)">`;
+            [...gameData.game1.items].sort(()=>Math.random()-0.5).forEach(i => html += `<div class="draggable bg-white shadow-md border-2 border-purple-400 px-4 py-2 rounded-xl cursor-grab font-bold text-purple-800 text-sm hover:scale-105" draggable="true" ondragstart="drag(event)" ondragend="dragEnd(event)" data-val="${i.type}">${i.text}</div>`);
+            html += `</div><div class="flex flex-col md:flex-row gap-6">
+                <div class="dropzone flex-1 bg-green-50 p-5 rounded-2xl border-2 border-dashed border-green-400 min-h-[150px] flex flex-wrap gap-2 content-start" id="l1-ess" ondrop="dropMatch(event)" ondragover="allowDrop(event)"><div class="w-full text-center text-green-700 font-black mb-3 pointer-events-none text-lg bg-white py-1 rounded-lg">จำเป็นต้องพก</div></div>
+                <div class="dropzone flex-1 bg-red-50 p-5 rounded-2xl border-2 border-dashed border-red-400 min-h-[150px] flex flex-wrap gap-2 content-start" id="l1-non" ondrop="dropMatch(event)" ondragover="allowDrop(event)"><div class="w-full text-center text-red-700 font-black mb-3 pointer-events-none text-lg bg-white py-1 rounded-lg">ทิ้งไว้ไม่จำเป็น</div></div>
+            </div><div class="mt-8 text-center" id="l1-ctrl"><button onclick="checkGame1()" class="bg-purple-600 text-white font-black py-3 px-10 rounded-2xl shadow-lg border-b-4 border-purple-800 text-xl hover:bg-purple-700"><i class="fas fa-check"></i> ตรวจคำตอบ</button></div>`;
+            document.getElementById('sec-lesson-1').innerHTML = html;
+        }
+        function checkGame1() {
+            let ok=true, c=0;
+            Array.from(document.getElementById('l1-ess').children).forEach(e=>{if(e.classList.contains('draggable')){c++; if(e.dataset.val!=='ess')ok=false;}});
+            Array.from(document.getElementById('l1-non').children).forEach(e=>{if(e.classList.contains('draggable')){c++; if(e.dataset.val!=='non')ok=false;}});
+            if(c < gameData.game1.items.length) return Swal.fire('ไม่ครบ','ลากให้หมด','warning');
+            if(ok) { playSFX('correct'); appState.progress.l1=true; renderSidebar(); document.getElementById('l1-ctrl').innerHTML = getNextLevelButton('lesson-2'); } 
+            else { playSFX('wrong'); Swal.fire('มีจุดผิด','ลองดูใหม่นะ','error'); }
+        }
+
+        // L2 (Algorithm No Numbers)
+        function renderGame2(force = false) {
+            if(appState.progress.l2 && !force) return;
+            const kp = getKnowledgePanel('อัลกอริทึม', 'ระเบียบวิธีหรือ <b>"ขั้นตอนวิธี"</b> ที่ใช้แก้ไขปัญหาอย่างเป็นระบบ มีลำดับก่อน-หลังชัดเจน (ไม่สามารถข้ามขั้นได้)', 'emerald');
+            let html = `${kp}<h3 class="text-xl font-black text-emerald-800 mb-3"><i class="fas fa-gamepad"></i> ภารกิจ: อัลกอริทึมการต้มบะหมี่</h3><p class="mb-4 font-bold text-lg text-gray-600">ลากข้อความสลับตำแหน่ง เพื่อเรียงลำดับขั้นตอนจากบนลงล่างให้ถูกต้อง</p>
+                <ol id="l2-sort" class="counter-list space-y-3 max-w-2xl mx-auto bg-emerald-50 p-6 rounded-2xl border-2 border-emerald-200 shadow-inner">`;
+            [...gameData.game2].sort(()=>Math.random()-0.5).forEach(s => html += `<li class="bg-white p-4 rounded-xl border border-emerald-300 shadow-sm cursor-grab flex items-center font-bold text-emerald-900 text-lg hover:bg-emerald-50 transition" draggable="true" id="${s.id}"><i class="fas fa-grip-lines text-gray-300 mr-4 pointer-events-none text-xl"></i><span class="pointer-events-none">${s.text}</span></li>`);
+            html += `</ol><div class="mt-8 text-center" id="l2-ctrl"><button onclick="checkGame2()" class="bg-emerald-600 text-white font-black py-3 px-10 rounded-2xl shadow-lg border-b-4 border-emerald-800 text-xl hover:bg-emerald-700"><i class="fas fa-check"></i> ตรวจคำตอบ</button></div>`;
+            document.getElementById('sec-lesson-2').innerHTML = html;
+            
+            let ul = document.getElementById('l2-sort'), dragLi = null;
+            ul.querySelectorAll('li').forEach(li => {
+                li.addEventListener('dragstart', function(e) { dragLi = this; setTimeout(()=>this.classList.add('opacity-50'), 0); });
+                li.addEventListener('dragend', function() { this.classList.remove('opacity-50'); dragLi=null; playSFX('click'); });
+                li.addEventListener('dragover', function(e) { e.preventDefault(); if(this !== dragLi) { let rect = this.getBoundingClientRect(); ul.insertBefore(dragLi, (e.clientY - rect.top)/(rect.bottom - rect.top) > 0.5 ? this.nextSibling : this); }});
+            });
+        }
+        function checkGame2() {
+            let cur = Array.from(document.getElementById('l2-sort').children).map(li=>li.id), cor = gameData.game2.map(s=>s.id);
+            if(JSON.stringify(cur)===JSON.stringify(cor)) { playSFX('correct'); appState.progress.l2=true; renderSidebar(); document.getElementById('l2-sort').classList.add('pointer-events-none'); document.getElementById('l2-ctrl').innerHTML = getNextLevelButton('lesson-3'); } 
+            else { playSFX('wrong'); Swal.fire('สลับกันอยู่','ลำดับยังไม่ถูกต้อง','error'); }
+        }
+
+        // L3
+        function renderGame3(force = false) {
+            if(appState.progress.l3 && !force) return;
+            const kp = getKnowledgePanel('ภาษาธรรมชาติ', 'การเขียนอธิบายขั้นตอนโดยใช้ <b>"ภาษามนุษย์"</b> ที่เข้าใจง่าย แต่อาจมีความกำกวม', 'teal');
+            let html = `${kp}<h3 class="text-xl font-black text-teal-800 mb-3"><i class="fas fa-gamepad"></i> ภารกิจ: วิเคราะห์ประโยค</h3><div class="grid gap-4 max-w-3xl mx-auto">`;
+            gameData.game3.forEach(item => {
+                let opts = `<option value="">-- เลือกประเภทการทำงาน --</option>` + item.opts.map(o=>`<option value="${o}">${o}</option>`).join('');
+                html += `<div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row items-center gap-4 l3-item" data-ans="${item.a}">
+                    <p class="font-bold text-gray-800 flex-1 w-full text-lg"><i class="fas fa-quote-left text-teal-300 mr-2"></i> ${item.q}</p>
+                    <select class="w-full md:w-auto p-3 border-2 border-teal-200 rounded-xl font-bold text-teal-800 bg-teal-50">${opts}</select></div>`;
+            });
+            html += `</div><div class="mt-8 text-center" id="l3-ctrl"><button onclick="checkGame3()" class="bg-teal-600 text-white font-black py-3 px-10 rounded-2xl shadow-lg border-b-4 border-teal-800 text-xl hover:bg-teal-700"><i class="fas fa-check"></i> ตรวจคำตอบ</button></div>`;
+            document.getElementById('sec-lesson-3').innerHTML = html;
+        }
+        function checkGame3() {
+            let ok=true, full=true;
+            document.querySelectorAll('.l3-item').forEach(div => {
+                let sel = div.querySelector('select'); if(!sel.value) full=false;
+                if(sel.value !== div.dataset.ans) { ok=false; div.classList.add('border-red-400'); } else { div.classList.remove('border-red-400'); }
+            });
+            if(!full) return Swal.fire('ไม่ครบ','ตอบให้ครบ','warning');
+            if(ok) { playSFX('correct'); appState.progress.l3=true; renderSidebar(); document.querySelectorAll('.l3-item select').forEach(s=>s.disabled=true); document.getElementById('l3-ctrl').innerHTML = getNextLevelButton('lesson-4'); } 
+            else { playSFX('wrong'); Swal.fire('มีข้อผิด','สังเกตกรอบสีแดง','error'); }
+        }
+
+        // L4
+        function renderGame4(force = false) {
+            if(appState.progress.l4 && !force) return;
+            const kp = getKnowledgePanel('รหัสลำลอง', 'การเขียน <b>Pseudocode</b> ด้วยคำสั่งคล้ายภาษาคอมพิวเตอร์ (อังกฤษ) เพื่อให้โครงสร้างชัดเจน', 'orange');
+            let html = `${kp}<h3 class="text-xl font-black text-orange-800 mb-3"><i class="fas fa-gamepad"></i> ภารกิจ: จับคู่รหัส</h3><div class="flex flex-col md:flex-row gap-6">
+                <div class="w-full md:w-1/3 flex flex-wrap md:flex-col gap-3 justify-center bg-orange-50 p-6 rounded-2xl border-2 border-orange-200 dropzone" id="l4-pool" ondrop="dropMatch(event)" ondragover="allowDrop(event)">`;
+            [...gameData.game4].sort(()=>Math.random()-0.5).forEach((d,i) => html += `<div class="draggable bg-orange-600 text-white px-4 py-3 rounded-xl text-center font-mono font-bold shadow hover:scale-105 transition" draggable="true" ondragstart="drag(event)" ondragend="dragEnd(event)" data-val="${d.code}">${d.code}</div>`);
+            html += `</div><div class="w-full md:w-2/3 flex flex-col gap-3">`;
+            [...gameData.game4].sort(()=>Math.random()-0.5).forEach(d => html += `<div class="flex items-center gap-4 bg-white p-3 rounded-xl shadow-sm border border-gray-200">
+                <div class="dropzone w-40 bg-gray-50 border-2 border-dashed border-orange-300 rounded-lg min-h-[50px] flex justify-center items-center p-1" data-ans="${d.code}" ondrop="dropMatch(event)" ondragover="allowDrop(event)"></div><span class="flex-1 font-bold text-gray-700 text-lg">${d.th}</span></div>`);
+            html += `</div></div><div class="mt-8 text-center" id="l4-ctrl"><button onclick="checkGame4()" class="bg-orange-600 text-white font-black py-3 px-10 rounded-2xl shadow-lg border-b-4 border-orange-800 text-xl hover:bg-orange-700"><i class="fas fa-check"></i> ตรวจคำตอบ</button></div>`;
+            document.getElementById('sec-lesson-4').innerHTML = html;
+        }
+        function checkGame4() {
+            let dzs = document.querySelectorAll('#sec-lesson-4 .dropzone[data-ans]'), ok=true, c=0;
+            dzs.forEach(dz => { if(dz.children.length>0){ c++; if(dz.children[0].dataset.val !== dz.dataset.ans) ok=false; } });
+            if(c < gameData.game4.length) return Swal.fire('ไม่ครบ','จับคู่ให้หมด','warning');
+            if(ok) { playSFX('correct'); appState.progress.l4=true; renderSidebar(); document.getElementById('l4-ctrl').innerHTML = getNextLevelButton('lesson-5'); } 
+            else { playSFX('wrong'); Swal.fire('ผิด','มีคู่ผิดอยู่','error'); }
+        }
+
+        // L5 - AR Balloon Pop
+        let isCameraActive = false, handsInstance = null, mpCamera = null;
+        let l5Active = false, l5QIdx = 0, l5Score = 0, balloonSpawnInterval;
+        
+        function setupL5UI() {
+            const kp = getKnowledgePanel('ผังงาน (Flowchart)', 'การใช้ <b>"ภาพสัญลักษณ์"</b> ตามมาตรฐานสากล เชื่อมต่อด้วยลูกศรบอกทิศทาง ทำให้เข้าใจโครงสร้างโปรแกรมได้ง่าย', 'yellow');
+            document.getElementById('l5-knowledge-container').innerHTML = kp;
+            document.getElementById('l5-start-screen').classList.remove('hidden');
+            document.getElementById('l5-next-btn-container').classList.add('hidden');
+            document.getElementById('l5-question-box').classList.add('hidden');
+        }
+
+        async function initMediaPipe() {
+            if(handsInstance) return true;
+            try {
+                Swal.fire({title: 'กำลังโหลด AI (MediaPipe)...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+                handsInstance = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                handsInstance.setOptions({ maxNumHands: 1, modelComplexity: 1, minDetectionConfidence: 0.7, minTrackingConfidence: 0.7 });
+                handsInstance.onResults(onHandsResults);
+                Swal.close();
+                return true;
+            } catch(e) { Swal.close(); console.error(e); return false; }
+        }
+
+        async function toggleCamera() {
+            const video = document.getElementById('ar-video'), overlay = document.getElementById('ar-overlay'), btn = document.getElementById('cam-toggle');
+            if(isCameraActive) {
+                // Stop camera
+                isCameraActive = false; if(mpCamera) { mpCamera.stop(); mpCamera = null; }
+                if(video.srcObject) video.srcObject.getTracks().forEach(t=>t.stop());
+                video.classList.add('hidden'); overlay.classList.remove('opacity-0'); overlay.classList.add('opacity-90');
+                btn.innerHTML = '<i class="fas fa-video-slash text-xl"></i>'; btn.classList.replace('bg-green-500','bg-gray-800');
+                document.getElementById('ar-pointer').classList.add('hidden');
+            } else {
+                // Start camera
+                let ok = await initMediaPipe();
+                if(ok && navigator.mediaDevices) {
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"user"}});
+                        video.srcObject = stream; video.classList.remove('hidden'); overlay.classList.remove('opacity-90'); overlay.classList.add('opacity-0');
+                        isCameraActive = true; btn.innerHTML = '<i class="fas fa-video text-xl"></i>'; btn.classList.replace('bg-gray-800','bg-green-500');
+                        mpCamera = new Camera(video, { onFrame: async () => { if(isCameraActive) await handsInstance.send({image: video}); }, width: 640, height: 480 });
+                        mpCamera.start();
+                    } catch(e) { Swal.fire('ผิดพลาด','ไม่สามารถเปิดกล้องได้ ใช้ระบบสัมผัสแทนนะ','warning'); }
+                }
+            }
+        }
+
+        function onHandsResults(results) {
+            if(!l5Active) { document.getElementById('ar-pointer').classList.add('hidden'); return; }
+            const pointer = document.getElementById('ar-pointer'), container = document.getElementById('l5-game-area');
+            if(results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const indexTip = results.multiHandLandmarks[0][8]; // ปลายนิ้วชี้
+                const rect = container.getBoundingClientRect();
+                const px = (1 - indexTip.x) * rect.width; // กล้องหน้ากลับซ้ายขวา
+                const py = indexTip.y * rect.height;
+                
+                pointer.style.left = px + 'px'; pointer.style.top = py + 'px'; pointer.classList.remove('hidden');
+                
+                // Collision Detection with Balloons
+                const ptrRect = pointer.getBoundingClientRect();
+                document.querySelectorAll('.balloon').forEach(b => {
+                    if(b.dataset.popped) return;
+                    const bRect = b.getBoundingClientRect();
+                    if(ptrRect.left < bRect.right && ptrRect.right > bRect.left && ptrRect.top < bRect.bottom && ptrRect.bottom > bRect.top) {
+                        b.dataset.popped = "true"; clickBalloon(b, b.dataset.cor === "true");
+                    }
+                });
+            } else { pointer.classList.add('hidden'); }
+        }
+
+        async function initL5Tutorial() {
+            document.getElementById('l5-start-screen').classList.add('hidden');
+            // สร้างลูกโป่งทดสอบ 1 ใบตรงกลาง
+            l5Active = true;
+            const container = document.getElementById('balloons-container'); container.innerHTML = '';
+            const b = document.createElement('div'); b.className = 'balloon'; b.style.left = '40%'; b.style.top = '40%';
+            b.innerHTML = `<div class="balloon-body bg-pink-500 text-white border-2 border-white">จิ้มฉัน<br>เพื่อเริ่ม!</div><div class="balloon-tail"></div>`;
+            b.onclick = () => { if(!b.dataset.popped) { b.dataset.popped="true"; clickBalloon(b, true, true); }};
+            container.appendChild(b);
+        }
+
+        function startGame5() {
+            l5QIdx = 0; l5Score = 0; l5Active = true;
+            document.getElementById('l5-score').innerText = 0;
+            document.getElementById('l5-question-box').classList.remove('hidden');
+            document.getElementById('l5-next-btn-container').classList.add('hidden');
+            nextL5Question();
+        }
+
+        function nextL5Question() {
+            if(l5QIdx >= 10) { endGame5(); return; }
+            document.getElementById('balloons-container').innerHTML = '';
+            const q = gameData.game5[l5QIdx];
+            document.getElementById('l5-progress').innerText = `ข้อ ${l5QIdx+1}/10`;
+            document.getElementById('l5-svg').innerHTML = `<svg viewBox="0 0 100 100" class="w-full h-full">${q.svg}</svg>`;
+            
+            let opts = [{text: q.name, cor: true}];
+            [...q.wrong].sort(()=>Math.random()-0.5).slice(0,2).forEach(w => opts.push({text: w, cor: false}));
+            opts.sort(()=>Math.random()-0.5);
+            
+            opts.forEach((o, i) => setTimeout(() => spawnBalloon(o.text, o.cor), i * 1200));
+        }
+
+        function spawnBalloon(text, isCor) {
+            if(!l5Active) return;
+            const container = document.getElementById('balloons-container'), b = document.createElement('div');
+            const colors = ['bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-teal-500'];
+            b.className = `balloon anim-float`;
+            b.style.left = (Math.random() * 60 + 20) + '%'; 
+            b.style.animationDuration = (Math.random() * 4 + 8) + 's'; // ลอยขึ้น 8-12 วิ
+            b.dataset.cor = isCor;
+            b.innerHTML = `<div class="balloon-body ${colors[Math.floor(Math.random()*colors.length)]}">${text}</div><div class="balloon-tail"></div>`;
+            b.onclick = () => { if(!b.dataset.popped) { b.dataset.popped="true"; clickBalloon(b, isCor); } };
+            
+            b.addEventListener('animationend', () => { if(b.parentElement) b.remove(); });
+            container.appendChild(b);
+        }
+
+        function clickBalloon(bElem, isCor, isTutorial=false) {
+            playSFX('pop');
+            bElem.style.transform = 'scale(1.5)'; bElem.style.opacity = '0';
+            setTimeout(() => { if(bElem.parentElement) bElem.remove(); }, 200);
+            
+            if(isTutorial) { startGame5(); return; }
+            
+            if(isCor) {
+                l5Score++; document.getElementById('l5-score').innerText = l5Score;
+                Swal.fire({title:'+1', icon:'success', toast:true, position:'top-end', showConfirmButton:false, timer:1000});
+                l5QIdx++; document.getElementById('balloons-container').innerHTML = '';
+                setTimeout(nextL5Question, 800);
+            } else {
+                Swal.fire({title:'ผิด!', icon:'error', toast:true, position:'top-end', showConfirmButton:false, timer:800});
+            }
+        }
+
+        function endGame5() {
+            l5Active = false; document.getElementById('ar-pointer').classList.add('hidden');
+            document.getElementById('l5-question-box').classList.add('hidden');
+            document.getElementById('l5-final-score').innerText = l5Score;
+            document.getElementById('l5-next-btn-container').classList.remove('hidden'); document.getElementById('l5-next-btn-container').classList.add('flex');
+            appState.progress.l5 = true; renderSidebar();
+        }
+        function resetL5() { l5Active=false; setupL5UI(); }
+
+        // Dashboard & DB
+        function renderDashboard() {
+            document.getElementById('dash-name').innerText = `${appState.user.name} (${appState.user.class} เลขที่ ${appState.user.roll})`;
+            let pre = appState.progress.preScore, post = appState.progress.postScore, pct = ((post-pre)/10)*100, dev = document.getElementById('dash-dev');
+            document.getElementById('dash-pre').innerText = pre; document.getElementById('dash-post').innerText = post;
+            dev.innerText = post > pre ? `พัฒนาขึ้น: +${pct}% 🎉` : (post === pre ? 'คงที่: 0%' : `ลดลง: ${pct}%`);
+        }
+        async function saveToGoogleSheets() {
+            const data = { action: 'save', name: appState.user.name, cls: appState.user.class, roll: appState.user.roll, pre: appState.progress.preScore, post: appState.progress.postScore };
+            leaderboardDB.push({ name: data.name, room: data.cls, number: data.roll, postTestScore: data.post }); renderLeaderboard();
+            Swal.fire({title: 'บันทึกคะแนน...', allowOutsideClick: false, didOpen: ()=>Swal.showLoading()});
+            try {
+                const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(data) });
+                const json = await res.json(); if(json.status === 'success') { Swal.fire('สำเร็จ', 'ส่งคะแนนเรียบร้อย', 'success'); fetchServerData(); }
+            } catch(e) { Swal.fire('โหมดออฟไลน์', 'เซฟลงเครื่องแล้ว', 'info'); }
+        }
+        function renderLeaderboard() {
+            const term = document.getElementById('leaderboard-search') ? document.getElementById('leaderboard-search').value.toLowerCase() : '', tbody = document.getElementById('leaderboard-body');
+            if(!tbody) return;
+            let sorted = [...leaderboardDB].sort((a,b) => b.postTestScore !== a.postTestScore ? b.postTestScore - a.postTestScore : ((a.room||"").localeCompare(b.room||"") || parseInt(a.number||0)-parseInt(b.number||0)));
+            tbody.innerHTML = sorted.filter(u => ((u.name||"").toLowerCase().includes(term) || (u.room||"").toLowerCase().includes(term))).map((u,i) => {
+                let rank = i===0 ? '<i class="fas fa-medal text-yellow-500 text-2xl"></i>' : (i===1 ? '<i class="fas fa-medal text-gray-400 text-xl"></i>' : (i===2 ? '<i class="fas fa-medal text-orange-600 text-xl"></i>' : `<span class="font-bold">${i+1}</span>`));
+                let me = u.name===appState.user.name&&u.room===appState.user.class&&u.number==appState.user.roll;
+                return `<tr class="${me?'bg-yellow-100 border-l-4 border-yellow-500 font-extrabold':'hover:bg-blue-50'} border-b border-gray-100"><td class="p-3 text-center">${rank}</td><td class="p-3 text-gray-800">${u.name} ${me?'<span class="text-[10px] bg-yellow-600 text-white px-2 rounded-full ml-1">คุณ</span>':''}</td><td class="p-3 text-center text-gray-600">${u.room}</td><td class="p-3 text-center text-gray-600">${u.number}</td><td class="p-3 text-center font-black text-blue-600 text-xl">${u.postTestScore}</td></tr>`;
+            }).join('') || '<tr><td colspan="5" class="p-6 text-center text-gray-500">ไม่มีข้อมูล</td></tr>';
+        }
+
+        // Export
+        function downloadPDF() { playSFX('click'); const e = document.getElementById('dash-content'), b = document.getElementById('dash-btns'); b.style.display='none'; html2pdf().set({filename:`ผลสอบ_${appState.user.name}.pdf`}).from(e).save().then(()=>b.style.display='flex'); }
+        function downloadExcel() { playSFX('click'); const ws = XLSX.utils.aoa_to_sheet([["ชื่อ",appState.user.name],["ชั้น",appState.user.class],["เลขที่",appState.user.roll],["ก่อนเรียน",appState.progress.preScore],["หลังเรียน",appState.progress.postScore]]); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Report"); XLSX.writeFile(wb, `ผลสอบ_${appState.user.name}.xlsx`); }
+
+        // Admin
+        function handleAdminLogin() {
+            if(document.getElementById('admin-user').value === 'Admin1234' && document.getElementById('admin-pass').value === 'KK222') {
+                playSFX('correct'); showView('view-admin-dashboard'); switchAdminTab('tab-config');
+            } else { playSFX('wrong'); Swal.fire('รหัสผิด', '', 'error'); }
+        }
+        function switchAdminTab(tab) {
+            ['tab-config','tab-students'].forEach(t => { document.getElementById(t).classList.add('hidden'); document.getElementById(t).classList.remove('flex'); document.getElementById('btn-'+t).className = 'py-3 px-6 font-bold text-gray-500 hover:text-blue-700 transition'; });
+            document.getElementById(tab).classList.remove('hidden'); document.getElementById(tab).classList.add('flex'); document.getElementById('btn-'+tab).className = 'py-3 px-6 font-black text-blue-700 border-b-4 border-blue-500 bg-blue-50';
+            if(tab==='tab-config') loadAdminEditor(); else renderAdminStudents();
+        }
+        function loadAdminEditor() { document.getElementById('admin-editor').value = JSON.stringify(gameData[document.getElementById('admin-section-select').value], null, 4); }
+        async function saveAdminData() {
+            try { gameData[document.getElementById('admin-section-select').value] = JSON.parse(document.getElementById('admin-editor').value);
+                Swal.fire({title:'อัปเดตระบบ...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+                const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'save_config', configData: gameData }) });
+                const json = await res.json(); if(json.status === 'success') { Swal.fire('สำเร็จ', 'อัปเดตโจทย์เกมแล้ว', 'success'); }
+            } catch(e) { Swal.fire('ผิดพลาด', 'JSON ผิดรูปแบบ', 'error'); }
+        }
+        function renderAdminStudents() {
+            const filter = document.getElementById('admin-filter').value, tbody = document.getElementById('admin-student-tbody');
+            let data = filter === 'all' ? allStudentData : allStudentData.filter(s => s.room === filter); data.sort((a,b)=>parseInt(a.number)-parseInt(b.number));
+            tbody.innerHTML = data.map(u => `<tr class="border-b"><td class="p-3 font-bold">${u.room}</td><td class="p-3 text-center font-bold">${u.number}</td><td class="p-3">${u.name}</td><td class="p-3 text-center text-red-600">${u.preTestScore||'-'}</td><td class="p-3 text-center text-green-600">${u.postTestScore||'-'}</td><td class="p-3 text-center"><button onclick="deleteStudent('${u.name}','${u.room}','${u.number}')" class="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-700">ลบ</button></td></tr>`).join('') || '<tr><td colspan="6" class="text-center p-4">ไม่มีข้อมูล</td></tr>';
+        }
+        async function deleteStudent(name, room, num) {
+            Swal.fire({title:`ลบ ${name}?`, icon:'warning', showCancelButton:true}).then(async r => { if(r.isConfirmed) {
+                Swal.fire({title:'กำลังลบ...', allowOutsideClick:false, didOpen:()=>Swal.showLoading()});
+                const res = await fetch(GOOGLE_APP_SCRIPT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'delete_record', name, cls: room, roll: num }) });
+                const json = await res.json(); if(json.status === 'success') { Swal.fire('ลบแล้ว','','success'); fetchServerData(); }
+            }});
+        }
+        async function fetchServerData() {
+            try { const res = await fetch(GOOGLE_APP_SCRIPT_URL); const data = await res.json();
+                if(data.status==='success') {
+                    if(data.data) { allStudentData = data.data; leaderboardDB = data.data.filter(s=>s.postTestScore!==undefined&&s.postTestScore!==''); renderLeaderboard(); if(!document.getElementById('tab-students').classList.contains('hidden')) renderAdminStudents(); }
+                    if(data.config) { gameData = data.config; }
+                }
+            } catch(e) {}
+        }
+        window.onload = fetchServerData;
+    </script>
+</body>
+</html>
